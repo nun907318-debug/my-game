@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>我的刀盾 - 3D版 砍真人</title>
+    <title>我的刀盾 - TikTok體感砍殺遊戲</title>
     <style>
         * {
             margin: 0;
@@ -14,63 +14,66 @@
         }
 
         body {
+            background: #000;
             overflow: hidden;
-            font-family: monospace;
+            font-family: 'PingFang TC', 'Segoe UI', 'Helvetica Neue', monospace;
             touch-action: none;
         }
 
-        /* 相機畫面 (小視窗) */
-        .camera-preview {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            width: 160px;
-            height: 120px;
-            border-radius: 16px;
-            overflow: hidden;
-            border: 3px solid #ffd966;
-            z-index: 20;
-            background: #000;
-            box-shadow: 0 0 20px rgba(0,0,0,0.5);
-        }
-
-        #videoCanvas {
+        /* 相機全螢幕 */
+        #camera {
+            position: absolute;
+            top: 0;
+            left: 0;
             width: 100%;
             height: 100%;
             object-fit: cover;
             transform: scaleX(-1);
+            z-index: 1;
         }
 
-        /* UI 血條 */
+        /* AR 繪圖層 */
+        #gameCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        /* UI 面板 */
         .ui-panel {
             position: fixed;
-            z-index: 15;
-            background: rgba(0,0,0,0.8);
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
-            padding: 8px 16px;
+            z-index: 10;
+            background: rgba(0,0,0,0.75);
+            backdrop-filter: blur(12px);
+            border-radius: 24px;
+            padding: 8px 18px;
             color: white;
             font-weight: bold;
-            border: 2px solid #ff4444;
+            border: 2px solid #ffd966;
             font-family: monospace;
         }
 
         .health-bar-container {
             top: 20px;
             left: 20px;
-            width: 220px;
+            width: 200px;
         }
 
         .enemy-health {
             top: 20px;
             right: 20px;
-            width: 220px;
+            width: 200px;
             text-align: right;
         }
 
         .health-label {
             font-size: 12px;
-            margin-bottom: 4px;
+            margin-bottom: 5px;
+            letter-spacing: 1px;
         }
 
         .health-bg {
@@ -88,62 +91,48 @@
             transition: width 0.2s ease;
         }
 
+        .enemy-health .health-fill {
+            background: linear-gradient(90deg, #ff8844, #ff4400);
+        }
+
         .status-panel {
-            bottom: 100px;
+            bottom: 110px;
             left: 50%;
             transform: translateX(-50%);
             text-align: center;
             white-space: nowrap;
-            border-color: #ffd966;
+            font-size: 14px;
+            background: rgba(0,0,0,0.85);
         }
 
-        /* 虛擬搖桿 */
-        .joystick-container {
-            position: fixed;
-            bottom: 30px;
-            left: 30px;
-            width: 140px;
-            height: 140px;
-            z-index: 20;
-        }
-
-        .joystick-base {
-            width: 100%;
-            height: 100%;
-            background: rgba(30,30,50,0.7);
-            backdrop-filter: blur(8px);
-            border-radius: 50%;
-            border: 2px solid rgba(255,255,255,0.3);
-        }
-
-        .joystick-thumb {
-            position: absolute;
-            width: 55px;
-            height: 55px;
-            background: rgba(255,215,0,0.9);
-            border-radius: 50%;
-            top: 50%;
+        .combo-panel {
+            top: 100px;
             left: 50%;
-            transform: translate(-50%, -50%);
-            box-shadow: 0 0 15px rgba(255,215,0,0.5);
-            transition: 0.02s linear;
-            pointer-events: none;
+            transform: translateX(-50%);
+            text-align: center;
+            font-size: 28px;
+            font-weight: bold;
+            color: #ffaa44;
+            text-shadow: 0 0 10px orange;
+            background: rgba(0,0,0,0.6);
+            border-color: #ffaa44;
+            white-space: nowrap;
         }
 
-        /* 攻擊防禦按鈕 */
+        /* 按鈕 */
         .action-buttons {
             position: fixed;
             bottom: 30px;
-            right: 30px;
-            z-index: 20;
+            right: 20px;
+            z-index: 10;
             display: flex;
             flex-direction: column;
             gap: 15px;
         }
 
         .action-btn {
-            width: 85px;
-            height: 85px;
+            width: 80px;
+            height: 80px;
             border-radius: 50%;
             background: rgba(0,0,0,0.7);
             backdrop-filter: blur(10px);
@@ -151,82 +140,81 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 40px;
+            font-size: 42px;
             cursor: pointer;
             touch-action: manipulation;
+            transition: 0.05s linear;
         }
 
         .attack-btn {
             border-color: #ff4444;
             background: rgba(180,0,0,0.8);
+            box-shadow: 0 0 15px rgba(255,0,0,0.3);
         }
 
         .defend-btn {
             border-color: #44aaff;
             background: rgba(0,80,120,0.8);
+            box-shadow: 0 0 15px rgba(68,170,255,0.3);
         }
 
         .action-btn:active {
             transform: scale(0.92);
         }
 
-        .defend-warning {
+        /* 警告 */
+        .warning {
             position: fixed;
             top: 40%;
             left: 50%;
             transform: translate(-50%, -50%);
-            z-index: 25;
-            font-size: 28px;
+            z-index: 20;
+            font-size: 34px;
             font-weight: bold;
-            color: red;
-            background: rgba(0,0,0,0.9);
-            padding: 16px 32px;
+            color: #ff0000;
+            background: rgba(0,0,0,0.95);
+            padding: 18px 36px;
             border-radius: 60px;
-            border: 3px solid red;
-            animation: pulse 0.3s infinite;
+            border: 4px solid red;
+            animation: pulseWarning 0.3s infinite;
             display: none;
             white-space: nowrap;
+            font-family: monospace;
+            text-align: center;
+            letter-spacing: 4px;
         }
 
-        @keyframes pulse {
-            0% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-            100% { opacity: 0.5; transform: translate(-50%, -50%) scale(1.05); }
+        @keyframes pulseWarning {
+            0% { opacity: 1; transform: translate(-50%, -50%) scale(1); text-shadow: 0 0 0 red; }
+            100% { opacity: 0.7; transform: translate(-50%, -50%) scale(1.05); text-shadow: 0 0 20px red; }
         }
 
-        .game-over {
+        /* 攻擊特效文字 */
+        .damage-pop {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.95);
-            z-index: 30;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            font-size: 48px;
-            color: white;
-            gap: 30px;
+            font-size: 36px;
+            font-weight: bold;
+            color: #ff6600;
+            text-shadow: 0 0 10px red;
+            z-index: 15;
+            pointer-events: none;
+            animation: floatUp 0.6s ease-out forwards;
+            font-family: monospace;
         }
 
-        .game-over button {
-            padding: 15px 40px;
-            font-size: 24px;
-            background: #ff4444;
-            border: none;
-            color: white;
-            border-radius: 50px;
-            cursor: pointer;
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translateY(0) scale(1); }
+            100% { opacity: 0; transform: translateY(-80px) scale(1.5); }
         }
 
+        /* 開始畫面 */
         .start-overlay {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: radial-gradient(circle at center, #1a1a2e, #000);
+            background: radial-gradient(circle at center, #1a1a2e, #000000);
             z-index: 100;
             display: flex;
             justify-content: center;
@@ -234,46 +222,101 @@
             flex-direction: column;
             gap: 30px;
             cursor: pointer;
+            transition: opacity 0.5s;
         }
 
         .start-title {
-            font-size: 56px;
+            font-size: 58px;
             color: #ffd966;
-            text-shadow: 0 0 20px rgba(255,217,102,0.5);
+            text-shadow: 0 0 25px rgba(255,217,102,0.6);
+            font-family: monospace;
+            letter-spacing: 8px;
         }
 
         .start-sub {
             font-size: 20px;
             color: white;
             background: rgba(0,0,0,0.7);
-            padding: 12px 24px;
-            border-radius: 50px;
+            padding: 14px 28px;
+            border-radius: 60px;
             border: 2px solid #ffd966;
+        }
+
+        .start-hint {
+            font-size: 14px;
+            color: #aaa;
+            margin-top: 20px;
+        }
+
+        /* 遊戲結束 */
+        .game-over {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.96);
+            z-index: 30;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            font-size: 52px;
+            color: white;
+            gap: 30px;
+            backdrop-filter: blur(8px);
+        }
+
+        .game-over button {
+            padding: 16px 44px;
+            font-size: 24px;
+            background: #ff4444;
+            border: none;
+            color: white;
+            border-radius: 60px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.2s;
+        }
+
+        .game-over button:active {
+            transform: scale(0.95);
+        }
+
+        .instruction {
+            position: fixed;
+            bottom: 15px;
+            left: 15px;
+            z-index: 10;
+            background: rgba(0,0,0,0.5);
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 10px;
+            color: #ccc;
+            pointer-events: none;
         }
     </style>
 </head>
 <body>
-    <div class="camera-preview">
-        <video id="videoCanvas" autoplay playsinline muted></video>
-    </div>
+    <video id="camera" autoplay playsinline muted></video>
+    <canvas id="gameCanvas"></canvas>
 
     <div class="ui-panel health-bar-container">
-        <div class="health-label">❤️ 玩家血量</div>
+        <div class="health-label">❤️ 你的生命</div>
         <div class="health-bg"><div class="health-fill" id="playerHealthFill" style="width: 100%"></div></div>
     </div>
 
     <div class="ui-panel enemy-health">
-        <div class="health-label">👹 敵人血量 (鏡頭真人)</div>
+        <div class="health-label">👹 敵人生命 (真人)</div>
         <div class="health-bg"><div class="health-fill" id="enemyHealthFill" style="width: 100%"></div></div>
     </div>
 
-    <div class="status-panel ui-panel" id="statusText">
-        🎮 左搖桿移動 | ⚔️攻擊真人
+    <div class="ui-panel combo-panel" id="comboDisplay">
+        ⚔️ 連擊 0 ⚔️
     </div>
 
-    <div class="joystick-container">
-        <div class="joystick-base" id="joystickBase"></div>
-        <div class="joystick-thumb" id="joystickThumb"></div>
+    <div class="status-panel ui-panel" id="statusText">
+        🎮 點擊攻擊按鈕砍殺真人
     </div>
 
     <div class="action-buttons">
@@ -281,482 +324,513 @@
         <div class="action-btn defend-btn" id="defendBtn">🛡️</div>
     </div>
 
-    <div id="defendWarning" class="defend-warning">⚠️ 轉頭防禦！ ⚠️</div>
+    <div id="warning" class="warning">⚠️ 轉頭防禦！ ⚠️</div>
 
-    <div class="start-overlay" id="startOverlay">
-        <div class="start-title">🗡️ 我的刀盾 3D 🛡️</div>
-        <div class="start-sub">⚔️ 點擊開啟鏡頭，砍真人！ ⚔️</div>
+    <div class="instruction">
+        📷 真人站在鏡頭前 | 按⚔️攻擊 | 轉頭時按🛡️防禦
     </div>
 
-    <!-- 引入 Three.js 和擴充 -->
-    <script type="importmap">
-        {
-            "imports": {
-                "three": "https://unpkg.com/three@0.128.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.128.0/examples/jsm/"
-            }
-        }
-    </script>
+    <div class="start-overlay" id="startOverlay">
+        <div class="start-title">🗡️ 我的刀盾 🛡️</div>
+        <div class="start-sub">⚔️ 點擊開啟鏡頭，砍真人！ ⚔️</div>
+        <div class="start-hint">📷 需要允許相機權限</div>
+    </div>
 
-    <script type="module">
-        import * as THREE from 'three';
-        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-        import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
-
+    <script>
         // ========== DOM 元素 ==========
-        const video = document.getElementById('videoCanvas');
+        const video = document.getElementById('camera');
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
         const playerHealthFill = document.getElementById('playerHealthFill');
         const enemyHealthFill = document.getElementById('enemyHealthFill');
         const statusDiv = document.getElementById('statusText');
-        const defendWarning = document.getElementById('defendWarning');
+        const warningDiv = document.getElementById('warning');
+        const comboDisplay = document.getElementById('comboDisplay');
         const attackBtn = document.getElementById('attackBtn');
         const defendBtn = document.getElementById('defendBtn');
         const startOverlay = document.getElementById('startOverlay');
-        const joystickBase = document.getElementById('joystickBase');
-        const joystickThumb = document.getElementById('joystickThumb');
 
         // ========== 遊戲狀態 ==========
         let playerHealth = 100;
         let enemyHealth = 100;
         let gameRunning = true;
         let cameraReady = false;
+        
+        // 人臉/人體偵測
         let faceDetected = false;
+        let isLookingAway = false;
+        
+        // 防禦系統
         let isDefending = false;
         let forcedDefense = false;
-        let canAttack = true;
-        let attackCooldown = 0;
-        let enemyAttackTimer = 0;
         let defendTimer = null;
         
-        // 搖桿
-        let joystickActive = false;
-        let joystickVector = { x: 0, y: 0 };
-        let joystickCenter = { x: 0, y: 0 };
-        let joystickRadius = 55;
+        // 攻擊系統
+        let canAttack = true;
+        let attackCooldown = 0;
+        let combo = 0;
+        let comboTimeout = null;
+        
+        // 敵人反擊
+        let enemyAttackTimer = 0;
+        
+        // 特效
+        let damagePopups = [];
+        
+        let stream = null;
+        let animationId = null;
 
-        // 3D 相關
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x0a1030);
-        scene.fog = new THREE.FogExp2(0x0a1030, 0.008);
-        
-        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(5, 4, 8);
-        camera.lookAt(0, 0, 0);
-        
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.shadowMap.enabled = true;
-        document.body.appendChild(renderer.domElement);
-        
-        // 2D 文字渲染器
-        const labelRenderer = new CSS2DRenderer();
-        labelRenderer.setSize(window.innerWidth, window.innerHeight);
-        labelRenderer.domElement.style.position = 'absolute';
-        labelRenderer.domElement.style.top = '0px';
-        labelRenderer.domElement.style.left = '0px';
-        labelRenderer.domElement.style.pointerEvents = 'none';
-        document.body.appendChild(labelRenderer.domElement);
-        
-        // 控制器 (追蹤玩家)
-        // 不用 OrbitControls，改為第三人稱跟隨
-        
-        // ========== 燈光 ==========
-        // 環境光
-        const ambientLight = new THREE.AmbientLight(0x404060);
-        scene.add(ambientLight);
-        // 主光源方向光
-        const dirLight = new THREE.DirectionalLight(0xffffff, 1);
-        dirLight.position.set(5, 10, 7);
-        dirLight.castShadow = true;
-        dirLight.receiveShadow = true;
-        scene.add(dirLight);
-        // 背光補光
-        const backLight = new THREE.PointLight(0x4466cc, 0.3);
-        backLight.position.set(-2, 2, -3);
-        scene.add(backLight);
-        // 地面光
-        const fillLight = new THREE.PointLight(0xffaa66, 0.2);
-        fillLight.position.set(0, 1, 0);
-        scene.add(fillLight);
-        
-        // ========== 地面 ==========
-        const gridHelper = new THREE.GridHelper(20, 20, 0x88aaff, 0x335588);
-        gridHelper.position.y = -0.5;
-        scene.add(gridHelper);
-        
-        const groundPlane = new THREE.Mesh(
-            new THREE.PlaneGeometry(15, 15),
-            new THREE.ShadowMaterial({ opacity: 0.4, color: 0x000000, transparent: true, side: THREE.DoubleSide })
-        );
-        groundPlane.rotation.x = -Math.PI / 2;
-        groundPlane.position.y = -0.5;
-        groundPlane.receiveShadow = true;
-        scene.add(groundPlane);
-        
-        // 裝飾：競技場圍欄
-        const ringColor = 0x66aaff;
-        const ringMat = new THREE.MeshStandardMaterial({ color: ringColor, emissive: 0x224466 });
-        for (let i = 0; i < 32; i++) {
-            const angle = (i / 32) * Math.PI * 2;
-            const x = Math.cos(angle) * 5.5;
-            const z = Math.sin(angle) * 5.5;
-            const pillar = new THREE.Mesh(new THREE.BoxGeometry(0.3, 1, 0.3), ringMat);
-            pillar.position.set(x, 0, z);
-            pillar.castShadow = true;
-            scene.add(pillar);
-        }
-        
-        // ========== 玩家角色 (刀盾戰士) ==========
-        const playerGroup = new THREE.Group();
-        
-        // 身體
-        const bodyGeo = new THREE.CylinderGeometry(0.5, 0.5, 1, 8);
-        const bodyMat = new THREE.MeshStandardMaterial({ color: 0x3a6ea5, metalness: 0.6, roughness: 0.3 });
-        const body = new THREE.Mesh(bodyGeo, bodyMat);
-        body.castShadow = true;
-        body.receiveShadow = true;
-        body.position.y = 0;
-        playerGroup.add(body);
-        
-        // 頭盔
-        const headGeo = new THREE.SphereGeometry(0.45, 16, 16);
-        const headMat = new THREE.MeshStandardMaterial({ color: 0xccaa77, metalness: 0.2 });
-        const head = new THREE.Mesh(headGeo, headMat);
-        head.position.y = 0.7;
-        head.castShadow = true;
-        playerGroup.add(head);
-        
-        // 頭盔裝飾
-        const crestGeo = new THREE.BoxGeometry(0.4, 0.15, 0.2);
-        const crestMat = new THREE.MeshStandardMaterial({ color: 0xdd5533 });
-        const crest = new THREE.Mesh(crestGeo, crestMat);
-        crest.position.set(0, 0.95, 0.3);
-        playerGroup.add(crest);
-        
-        // 盾牌 (左手)
-        const shieldGeo = new THREE.BoxGeometry(0.5, 0.8, 0.1);
-        const shieldMat = new THREE.MeshStandardMaterial({ color: 0xcc8844, metalness: 0.7 });
-        const shield = new THREE.Mesh(shieldGeo, shieldMat);
-        shield.position.set(-0.65, 0.2, 0.3);
-        shield.castShadow = true;
-        playerGroup.add(shield);
-        
-        // 劍 (右手)
-        const bladeGeo = new THREE.BoxGeometry(0.1, 0.1, 0.8);
-        const bladeMat = new THREE.MeshStandardMaterial({ color: 0xddddff, metalness: 0.9 });
-        const blade = new THREE.Mesh(bladeGeo, bladeMat);
-        blade.position.set(0.65, 0.2, 0.4);
-        blade.castShadow = true;
-        playerGroup.add(blade);
-        
-        const hiltGeo = new THREE.BoxGeometry(0.2, 0.2, 0.2);
-        const hiltMat = new THREE.MeshStandardMaterial({ color: 0xaa8866 });
-        const hilt = new THREE.Mesh(hiltGeo, hiltMat);
-        hilt.position.set(0.65, 0.1, 0.4);
-        playerGroup.add(hilt);
-        
-        playerGroup.position.set(0, 0, 0);
-        playerGroup.castShadow = true;
-        scene.add(playerGroup);
-        
-        // 玩家名稱標籤
-        const playerDiv = document.createElement('div');
-        playerDiv.textContent = '🗡️ 刀盾勇士 🛡️';
-        playerDiv.style.color = '#ffdd99';
-        playerDiv.style.fontSize = '16px';
-        playerDiv.style.fontWeight = 'bold';
-        playerDiv.style.textShadow = '1px 1px 0 black';
-        const playerLabel = new CSS2DObject(playerDiv);
-        playerLabel.position.set(0, 1.2, 0);
-        playerGroup.add(playerLabel);
-        
-        // 敵人目標 (代表鏡頭真人，在場景中出現紅點)
-        const enemyGroup = new THREE.Group();
-        const enemyBody = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 1.1, 8), new THREE.MeshStandardMaterial({ color: 0xaa4444, emissive: 0x331111 }));
-        enemyBody.castShadow = true;
-        enemyGroup.add(enemyBody);
-        const enemyHead = new THREE.Mesh(new THREE.SphereGeometry(0.48, 16, 16), new THREE.MeshStandardMaterial({ color: 0xdd9988 }));
-        enemyHead.position.y = 0.75;
-        enemyGroup.add(enemyHead);
-        const enemyDiv = document.createElement('div');
-        enemyDiv.textContent = '👤 真人敵人';
-        enemyDiv.style.color = '#ff8888';
-        enemyDiv.style.fontSize = '14px';
-        const enemyLabel = new CSS2DObject(enemyDiv);
-        enemyLabel.position.set(0, 1.25, 0);
-        enemyGroup.add(enemyLabel);
-        
-        // 敵人位置隨鏡頭偵測到的真人移動（但為了3D感，讓他徘徊在玩家前方）
-        enemyGroup.position.set(2, 0, 2);
-        scene.add(enemyGroup);
-        
-        // 武器特效 (攻擊時)
-        let slashEffect = null;
-        
-        function showSlash() {
-            if (slashEffect) scene.remove(slashEffect);
-            const geometry = new THREE.SphereGeometry(0.4, 6, 6);
-            const material = new THREE.MeshStandardMaterial({ color: 0xff6600, emissive: 0xff2200, transparent: true });
-            slashEffect = new THREE.Mesh(geometry, material);
-            slashEffect.position.set(0.9, 0.4, 0.9);
-            playerGroup.add(slashEffect);
-            setTimeout(() => {
-                if (slashEffect) scene.remove(slashEffect);
-            }, 150);
-        }
-        
-        function showDefendEffect() {
-            const ringGeo = new THREE.RingGeometry(0.5, 0.9, 16);
-            const ringMat = new THREE.MeshStandardMaterial({ color: 0x44aaff, emissive: 0x2288ff, side: THREE.DoubleSide, transparent: true });
-            const ring = new THREE.Mesh(ringGeo, ringMat);
-            ring.position.set(-0.7, 0.3, 0.5);
-            ring.lookAt(0, 0, 1);
-            playerGroup.add(ring);
-            setTimeout(() => playerGroup.remove(ring), 300);
-        }
-        
-        // ========== 搖桿邏輯 ==========
-        function initJoystick() {
-            const rect = joystickBase.getBoundingClientRect();
-            joystickCenter.x = rect.left + rect.width / 2;
-            joystickCenter.y = rect.top + rect.height / 2;
-            joystickRadius = rect.width / 2 - 10;
-        }
-        
-        function updateJoystickPosition(e) {
-            if (!joystickActive) return;
-            let clientX, clientY;
-            if (e.touches) {
-                clientX = e.touches[0].clientX;
-                clientY = e.touches[0].clientY;
-            } else {
-                clientX = e.clientX;
-                clientY = e.clientY;
-            }
-            let dx = clientX - joystickCenter.x;
-            let dy = clientY - joystickCenter.y;
-            let dist = Math.hypot(dx, dy);
-            if (dist > joystickRadius) {
-                dx = dx / dist * joystickRadius;
-                dy = dy / dist * joystickRadius;
-            }
-            joystickVector.x = dx / joystickRadius;
-            joystickVector.y = dy / joystickRadius;
-            joystickThumb.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
-        }
-        
-        function handleJoystickStart(e) {
-            e.preventDefault();
-            joystickActive = true;
-            updateJoystickPosition(e);
-        }
-        
-        function handleJoystickEnd() {
-            joystickActive = false;
-            joystickVector = { x: 0, y: 0 };
-            joystickThumb.style.transform = 'translate(-50%, -50%)';
-        }
-        
-        joystickBase.addEventListener('touchstart', handleJoystickStart);
-        joystickBase.addEventListener('touchmove', updateJoystickPosition);
-        joystickBase.addEventListener('touchend', handleJoystickEnd);
-        window.addEventListener('resize', () => { initJoystick(); });
-        
-        // ========== 遊戲邏輯 ==========
+        // ========== 更新血條 ==========
         function updateHealthBars() {
             playerHealthFill.style.width = `${Math.max(0, playerHealth)}%`;
             enemyHealthFill.style.width = `${Math.max(0, enemyHealth)}%`;
         }
-        
-        function gameOver() {
-            if (!gameRunning) return;
-            gameRunning = false;
-            const div = document.createElement('div');
-            div.className = 'game-over';
-            div.innerHTML = `<div>💀 戰敗 💀</div><button onclick="location.reload()">🔄 重來</button>`;
-            document.body.appendChild(div);
+
+        // ========== 顯示傷害數字 ==========
+        function showDamagePopup(damage, isEnemy) {
+            const pop = document.createElement('div');
+            pop.className = 'damage-pop';
+            pop.textContent = `-${damage}!`;
+            pop.style.left = isEnemy ? '70%' : '30%';
+            pop.style.top = '40%';
+            pop.style.color = isEnemy ? '#ff8844' : '#ff4444';
+            document.body.appendChild(pop);
+            setTimeout(() => pop.remove(), 600);
         }
-        
+
+        // ========== 攻擊特效 (畫面閃紅) ==========
+        function flashScreen(color, alpha = 0.3) {
+            ctx.fillStyle = color;
+            ctx.globalAlpha = alpha;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.globalAlpha = 1;
+            setTimeout(() => {
+                if (gameRunning) ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }, 100);
+        }
+
+        // ========== 連擊系統 ==========
+        function addCombo() {
+            combo++;
+            comboDisplay.innerHTML = `⚔️ 連擊 ${combo} ⚔️`;
+            comboDisplay.style.transform = 'scale(1.2)';
+            setTimeout(() => { if(comboDisplay) comboDisplay.style.transform = 'scale(1)'; }, 150);
+            
+            if (comboTimeout) clearTimeout(comboTimeout);
+            comboTimeout = setTimeout(() => {
+                combo = 0;
+                comboDisplay.innerHTML = `⚔️ 連擊 0 ⚔️`;
+            }, 3000);
+        }
+
+        function resetCombo() {
+            combo = 0;
+            comboDisplay.innerHTML = `⚔️ 連擊 0 ⚔️`;
+            if (comboTimeout) clearTimeout(comboTimeout);
+        }
+
+        // ========== 攻擊！砍真人 ==========
         function tryAttack() {
-            if (!gameRunning || !cameraReady) return;
-            if (!canAttack) return;
-            if (!faceDetected) {
-                statusDiv.innerText = "❌ 鏡頭沒人！";
-                return;
+            if (!gameRunning) return false;
+            if (!cameraReady) {
+                statusDiv.innerText = "❌ 鏡頭未開啟";
+                return false;
             }
+            if (!canAttack) {
+                statusDiv.innerText = "⏳ 冷卻中...";
+                return false;
+            }
+            if (!faceDetected) {
+                statusDiv.innerText = "❌ 鏡頭前沒人！敵人在哪？";
+                return false;
+            }
+            if (isLookingAway) {
+                statusDiv.innerText = "⚠️ 你轉頭了！無法攻擊！";
+                return false;
+            }
+            
+            // 攻擊成功
             canAttack = false;
-            attackCooldown = 20;
-            const damage = 14;
+            attackCooldown = 18;  // 冷卻幀數
+            
+            const damage = 12 + Math.floor(combo / 5); // 連擊加成
             enemyHealth = Math.max(0, enemyHealth - damage);
             updateHealthBars();
-            statusDiv.innerText = `⚔️ 砍中真人！ -${damage}`;
-            showSlash();
+            showDamagePopup(damage, true);
+            flashScreen('#ff3300', 0.4);
+            addCombo();
+            
+            statusDiv.innerText = `⚔️ 砍中真人！ -${damage} ⚔️`;
+            
+            // 震動
             if (navigator.vibrate) navigator.vibrate(50);
+            
+            // 勝利判定
             if (enemyHealth <= 0) {
                 gameRunning = false;
-                const winDiv = document.createElement('div');
-                winDiv.className = 'game-over';
-                winDiv.innerHTML = `<div>🏆 勝利 🏆</div><button onclick="location.reload()">再玩一次</button>`;
-                document.body.appendChild(winDiv);
+                const div = document.createElement('div');
+                div.className = 'game-over';
+                div.innerHTML = `
+                    <div>🏆 勝利！ 🏆</div>
+                    <div style="font-size:24px">連擊數: ${combo}</div>
+                    <button onclick="location.reload()">⚔️ 再玩一次 ⚔️</button>
+                `;
+                document.body.appendChild(div);
             }
+            
+            return true;
         }
-        
+
+        // ========== 防禦 ==========
         function startDefense() {
             if (!gameRunning) return;
             if (defendTimer) clearTimeout(defendTimer);
             isDefending = true;
-            statusDiv.innerText = "🛡️ 防禦中！";
-            showDefendEffect();
-            defendTimer = setTimeout(() => { isDefending = false; if(!forcedDefense) statusDiv.innerText = "🎮 搖桿移動 | 攻擊"; }, 700);
+            statusDiv.innerText = "🛡️ 防禦中！ 🛡️";
+            flashScreen('#4488ff', 0.25);
+            if (navigator.vibrate) navigator.vibrate(30);
+            
+            defendTimer = setTimeout(() => {
+                isDefending = false;
+                if (gameRunning && !forcedDefense) {
+                    statusDiv.innerText = "🗡️ 點攻擊砍真人 🛡️";
+                }
+            }, 700);
         }
-        
+
+        // ========== 玩家受傷 ==========
         function damagePlayer(amount) {
             if (!gameRunning) return;
+            
             if (isDefending) {
-                statusDiv.innerText = "🛡️ 格擋！";
+                statusDiv.innerText = "🛡️ 防禦成功！格擋！";
+                flashScreen('#4488ff', 0.2);
                 return;
             }
+            
             playerHealth = Math.max(0, playerHealth - amount);
             updateHealthBars();
-            statusDiv.innerText = `💔 受傷 -${amount}`;
+            showDamagePopup(amount, false);
+            flashScreen('#ffffff', 0.5);
+            statusDiv.innerText = `💔 受傷 -${amount} 💔`;
+            resetCombo();
+            
             if (navigator.vibrate) navigator.vibrate(100);
-            if (playerHealth <= 0) gameOver();
+            
+            if (playerHealth <= 0) {
+                gameRunning = false;
+                const div = document.createElement('div');
+                div.className = 'game-over';
+                div.innerHTML = `
+                    <div>💀 戰敗 💀</div>
+                    <div style="font-size:20px">${isLookingAway ? '轉頭沒防禦' : '血量歸零'}</div>
+                    <button onclick="location.reload()">🔄 重來</button>
+                `;
+                document.body.appendChild(div);
+            }
         }
-        
-        // 膚色偵測
-        function isSkinColor(r,g,b) { return (r>70 && g>35 && b>20 && Math.abs(r-g)>8 && r>g && r>b); }
-        
-        let lastFaceState = true;
-        function analyzeFrame(imgData) {
-            const data = imgData.data, w = imgData.width, h = imgData.height;
-            let skin=0, centerSkin=0, centerStart=w*0.2, centerEnd=w*0.8;
-            for(let y=0; y<h; y+=6) for(let x=0; x<w; x+=6) {
-                const idx=(y*w+x)*4;
-                if(isSkinColor(data[idx],data[idx+1],data[idx+2])) {
-                    skin++;
-                    if(x>=centerStart && x<=centerEnd) centerSkin++;
+
+        // ========== 敵人反擊 AI ==========
+        function updateEnemyCounter() {
+            if (!gameRunning) return;
+            if (enemyHealth <= 0) return;
+            
+            if (enemyAttackTimer <= 0) {
+                // 只有鏡頭前有真人才會反擊
+                if (faceDetected && !isLookingAway) {
+                    damagePlayer(10);
+                    enemyAttackTimer = 45;  // 約0.7秒反擊一次
+                }
+            } else {
+                enemyAttackTimer--;
+            }
+        }
+
+        // ========== 膚色/人臉偵測 ==========
+        function isSkinColor(r, g, b) {
+            // 膚色範圍（適合各種膚色）
+            return (r > 65 && g > 35 && b > 20 && 
+                    Math.abs(r - g) > 8 && 
+                    r > g && r > b);
+        }
+
+        function detectHumanAndDirection(imageData) {
+            const data = imageData.data;
+            const width = imageData.width;
+            const height = imageData.height;
+            let totalSkin = 0;
+            let centerSkin = 0;
+            
+            const centerStartX = width * 0.25;
+            const centerEndX = width * 0.75;
+            
+            // 降取樣加速
+            for (let y = 0; y < height; y += 6) {
+                for (let x = 0; x < width; x += 6) {
+                    const idx = (y * width + x) * 4;
+                    const r = data[idx];
+                    const g = data[idx+1];
+                    const b = data[idx+2];
+                    
+                    if (isSkinColor(r, g, b)) {
+                        totalSkin++;
+                        if (x >= centerStartX && x <= centerEndX) {
+                            centerSkin++;
+                        }
+                    }
                 }
             }
-            const total = (w*h)/36, skinRatio = skin/total, centerRatio = centerSkin/total;
-            const human = skinRatio > 0.012;
-            let away = !human || (human && centerRatio < skinRatio*0.45);
-            return { human, away };
-        }
-        
-        // 鏡頭與更新
-        async function startCamera() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
-                video.srcObject = stream;
-                await video.play();
-                cameraReady = true;
-                statusDiv.innerText = "✅ 鏡頭OK！把真人放進畫面，攻擊！";
-            } catch(e) {
-                statusDiv.innerText = "❌ 鏡頭失敗";
-            }
-        }
-        
-        // 敵人AI：反擊 & 移動
-        function updateEnemy() {
-            if (!gameRunning) return;
-            if (enemyAttackTimer <= 0 && faceDetected) {
-                damagePlayer(8);
-                enemyAttackTimer = 50;
-            } else enemyAttackTimer--;
-            // 敵人AI簡單移動追蹤玩家
-            const dx = playerGroup.position.x - enemyGroup.position.x;
-            const dz = playerGroup.position.z - enemyGroup.position.z;
-            if (Math.abs(dx) > 0.5 || Math.abs(dz) > 0.5) {
-                enemyGroup.position.x += Math.sign(dx) * 0.02;
-                enemyGroup.position.z += Math.sign(dz) * 0.02;
-            }
-            // 面向玩家
-            enemyGroup.lookAt(playerGroup.position);
-        }
-        
-        // 玩家移動
-        function updatePlayerMovement() {
-            if (!gameRunning) return;
-            let speed = 0.07;
-            let newX = playerGroup.position.x + joystickVector.x * speed;
-            let newZ = playerGroup.position.z + joystickVector.y * speed;
-            if (Math.abs(newX) < 6) playerGroup.position.x = newX;
-            if (Math.abs(newZ) < 6) playerGroup.position.z = newZ;
-            // 旋轉面向移動方向
-            if (joystickVector.x !== 0 || joystickVector.y !== 0) {
-                let angle = Math.atan2(joystickVector.x, joystickVector.y);
-                playerGroup.rotation.y = angle;
-            }
-        }
-        
-        // 第三人稱相機跟隨
-        function updateCamera() {
-            const targetPos = playerGroup.position.clone();
-            camera.position.x = targetPos.x + 4;
-            camera.position.z = targetPos.z + 6;
-            camera.position.y = 3.5;
-            camera.lookAt(targetPos);
-        }
-        
-        // 動畫與偵測循環
-        let frameId;
-        let videoCanvas = document.createElement('canvas');
-        let videoCtx = videoCanvas.getContext('2d');
-        
-        async function gameLoop() {
-            if (!gameRunning) return;
-            updatePlayerMovement();
-            updateEnemy();
-            updateCamera();
             
-            if (!canAttack) { attackCooldown--; if(attackCooldown<=0) canAttack=true; }
+            const totalSampled = (width * height) / 36;
+            const skinRatio = totalSkin / totalSampled;
+            const centerRatio = centerSkin / totalSampled;
             
-            if (cameraReady && video.readyState >= 2 && video.videoWidth) {
-                videoCanvas.width = video.videoWidth;
-                videoCanvas.height = video.videoHeight;
-                videoCtx.drawImage(video, 0, 0, videoCanvas.width, videoCanvas.height);
-                const imgData = videoCtx.getImageData(0,0,videoCanvas.width,videoCanvas.height);
-                const { human, away } = analyzeFrame(imgData);
-                faceDetected = human;
-                if (away) {
+            const humanDetected = skinRatio > 0.012;
+            let lookingAway = false;
+            
+            if (humanDetected) {
+                // 如果中央膚色少於總膚色的一半 => 轉頭
+                if (centerRatio < skinRatio * 0.45) {
+                    lookingAway = true;
+                }
+            } else {
+                lookingAway = true;  // 沒人 = 轉頭
+            }
+            
+            return { humanDetected, lookingAway };
+        }
+
+        // ========== 繪製 AR 刀盾戰士 ==========
+        function drawARWarrior() {
+            if (!canvas.width || !canvas.height) return;
+            
+            const w = canvas.width;
+            const h = canvas.height;
+            const centerX = w / 2;
+            const centerY = h / 2;
+            
+            // 繪製半透明圓形光環（代表玩家位置）
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 80, 0, Math.PI * 2);
+            ctx.fillStyle = faceDetected ? 'rgba(0,200,100,0.15)' : 'rgba(200,0,0,0.15)';
+            ctx.fill();
+            ctx.strokeStyle = faceDetected ? '#00ff88' : '#ff4444';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+            
+            // 繪製刀盾戰士（簡單但酷炫）
+            // 頭盔
+            ctx.beginPath();
+            ctx.arc(centerX, centerY - 30, 35, 0, Math.PI * 2);
+            ctx.fillStyle = '#3a6ea5';
+            ctx.fill();
+            ctx.strokeStyle = '#ffcc88';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // 臉部（表情根據狀態）
+            ctx.fillStyle = '#ffccaa';
+            ctx.beginPath();
+            ctx.arc(centerX - 12, centerY - 38, 6, 0, Math.PI * 2);
+            ctx.arc(centerX + 12, centerY - 38, 6, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // 生氣/正常表情
+            if (faceDetected && !isLookingAway) {
+                ctx.beginPath();
+                ctx.arc(centerX, centerY - 22, 10, 0.1, Math.PI - 0.1);
+                ctx.stroke();
+            } else {
+                ctx.beginPath();
+                ctx.arc(centerX, centerY - 22, 8, 0, Math.PI);
+                ctx.stroke();
+            }
+            
+            // 身體
+            ctx.fillStyle = '#2a5f8f';
+            ctx.fillRect(centerX - 30, centerY - 5, 60, 55);
+            
+            // 盾牌（左手）
+            ctx.fillStyle = '#cc8844';
+            ctx.beginPath();
+            ctx.ellipse(centerX - 40, centerY + 10, 20, 30, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#ffaa66';
+            ctx.font = "28px monospace";
+            ctx.fillText("🛡️", centerX - 52, centerY + 18);
+            
+            // 劍（右手）
+            ctx.beginPath();
+            ctx.moveTo(centerX + 35, centerY + 5);
+            ctx.lineTo(centerX + 70, centerY - 15);
+            ctx.lineTo(centerX + 65, centerY - 20);
+            ctx.fillStyle = '#ddddff';
+            ctx.fill();
+            ctx.fillStyle = '#ffffff';
+            ctx.font = "32px monospace";
+            ctx.fillText("⚔️", centerX + 45, centerY - 10);
+            
+            // 狀態文字
+            ctx.font = "bold 18px monospace";
+            ctx.fillStyle = faceDetected ? '#88ff88' : '#ff8888';
+            ctx.shadowBlur = 0;
+            ctx.fillText(faceDetected ? "✓ 鎖定目標" : "✗ 無人可砍", centerX - 60, centerY - 70);
+            
+            if (isDefending) {
+                ctx.fillStyle = '#44aaff';
+                ctx.font = "bold 28px monospace";
+                ctx.fillText("🛡️ 防禦狀態 🛡️", centerX - 70, centerY + 60);
+            }
+        }
+
+        // ========== 主遊戲循環 ==========
+        function gameLoop() {
+            if (!gameRunning) {
+                if (animationId) cancelAnimationFrame(animationId);
+                return;
+            }
+            
+            // 更新冷卻
+            if (!canAttack) {
+                attackCooldown--;
+                if (attackCooldown <= 0) canAttack = true;
+            }
+            
+            // 敵人反擊
+            updateEnemyCounter();
+            
+            // 處理鏡頭和AR繪圖
+            if (cameraReady && video.readyState >= 2 && video.videoWidth > 0) {
+                // 設定畫布尺寸
+                if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                }
+                
+                // 繪製鏡頭畫面
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                
+                // 分析畫面（偵測人臉和轉頭）
+                try {
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    const { humanDetected, lookingAway } = detectHumanAndDirection(imageData);
+                    faceDetected = humanDetected;
+                    isLookingAway = lookingAway;
+                } catch(e) {
+                    console.warn("分析失敗", e);
+                }
+                
+                // 轉頭防禦機制
+                if (isLookingAway) {
                     if (!forcedDefense) {
                         forcedDefense = true;
-                        defendWarning.style.display = 'block';
-                        statusDiv.innerText = "⚠️ 轉頭！快防禦！";
+                        warningDiv.style.display = 'block';
+                        statusDiv.innerText = "⚠️ 轉頭警報！快按防禦！ ⚠️";
+                        
+                        // 0.8秒內沒防禦就輸
                         setTimeout(() => {
-                            if (forcedDefense && !isDefending && gameRunning) gameOver();
-                        }, 900);
+                            if (forcedDefense && !isDefending && gameRunning) {
+                                gameRunning = false;
+                                const div = document.createElement('div');
+                                div.className = 'game-over';
+                                div.innerHTML = `
+                                    <div>💀 轉頭沒防禦 💀</div>
+                                    <button onclick="location.reload()">🔄 重來</button>
+                                `;
+                                document.body.appendChild(div);
+                            }
+                        }, 800);
                     }
                 } else {
                     forcedDefense = false;
-                    defendWarning.style.display = 'none';
+                    warningDiv.style.display = 'none';
                 }
+                
+                // 畫 AR 刀盾戰士
+                drawARWarrior();
+                
+            } else if (cameraReady) {
+                // 鏡頭準備中
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                drawARWarrior();
+                ctx.fillStyle = 'white';
+                ctx.font = '20px monospace';
+                ctx.fillText('等待鏡頭畫面...', canvas.width/2-100, canvas.height/2);
             }
             
-            renderer.render(scene, camera);
-            labelRenderer.render(scene, camera);
-            requestAnimationFrame(gameLoop);
+            animationId = requestAnimationFrame(gameLoop);
         }
+
+        // ========== 開啟鏡頭 ==========
+        async function startCamera() {
+            try {
+                statusDiv.innerText = "📷 請求鏡頭權限...";
+                const constraints = {
+                    video: {
+                        facingMode: "user",
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
+                };
+                stream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = stream;
+                await video.play();
+                cameraReady = true;
+                statusDiv.innerText = "✅ 鏡頭已開啟！把真人放進畫面中央！";
+                
+                // 等待取得畫面尺寸
+                await new Promise(resolve => {
+                    const check = setInterval(() => {
+                        if (video.videoWidth > 0) {
+                            clearInterval(check);
+                            resolve();
+                        }
+                    }, 100);
+                });
+                
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                
+            } catch (err) {
+                console.error(err);
+                statusDiv.innerText = "❌ 無法開啟鏡頭，請檢查權限";
+                cameraReady = false;
+            }
+        }
+
+        // ========== 事件綁定 ==========
+        attackBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            tryAttack();
+        });
         
-        // 事件
-        attackBtn.addEventListener('click', (e) => { e.preventDefault(); tryAttack(); });
-        defendBtn.addEventListener('click', (e) => { e.preventDefault(); startDefense(); });
-        attackBtn.addEventListener('touchstart', (e) => { e.preventDefault(); tryAttack(); });
-        defendBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startDefense(); });
+        attackBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            tryAttack();
+        });
         
+        defendBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            startDefense();
+        });
+        
+        defendBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            startDefense();
+        });
+        
+        // 開始遊戲
         startOverlay.addEventListener('click', async () => {
             startOverlay.style.opacity = '0';
-            setTimeout(() => startOverlay.remove(), 500);
+            setTimeout(() => startOverlay.style.display = 'none', 500);
             await startCamera();
             gameLoop();
         });
         
-        initJoystick();
+        // 初始化
         updateHealthBars();
-        
-        // 預設敵人位置
-        enemyGroup.position.set(2, 0, 2);
-        playerGroup.position.set(0, 0, 0);
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
     </script>
 </body>
 </html>
