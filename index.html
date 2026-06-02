@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>我的刀盾 - TikTok體感砍殺遊戲</title>
+    <title>我的刀盾 - 搖桿控制戰士砍真人</title>
     <style>
         * {
             margin: 0;
@@ -16,11 +16,11 @@
         body {
             background: #000;
             overflow: hidden;
-            font-family: 'PingFang TC', 'Segoe UI', 'Helvetica Neue', monospace;
+            font-family: 'PingFang TC', monospace;
             touch-action: none;
         }
 
-        /* 相機全螢幕 */
+        /* 相機全螢幕背景 */
         #camera {
             position: absolute;
             top: 0;
@@ -32,7 +32,7 @@
             z-index: 1;
         }
 
-        /* AR 繪圖層 */
+        /* 遊戲繪圖層 */
         #gameCanvas {
             position: absolute;
             top: 0;
@@ -47,7 +47,7 @@
         .ui-panel {
             position: fixed;
             z-index: 10;
-            background: rgba(0,0,0,0.75);
+            background: rgba(0,0,0,0.8);
             backdrop-filter: blur(12px);
             border-radius: 24px;
             padding: 8px 18px;
@@ -73,7 +73,6 @@
         .health-label {
             font-size: 12px;
             margin-bottom: 5px;
-            letter-spacing: 1px;
         }
 
         .health-bg {
@@ -96,35 +95,63 @@
         }
 
         .status-panel {
-            bottom: 110px;
+            bottom: 130px;
             left: 50%;
             transform: translateX(-50%);
             text-align: center;
             white-space: nowrap;
-            font-size: 14px;
-            background: rgba(0,0,0,0.85);
+            font-size: 13px;
         }
 
         .combo-panel {
             top: 100px;
             left: 50%;
             transform: translateX(-50%);
-            text-align: center;
-            font-size: 28px;
-            font-weight: bold;
+            font-size: 22px;
             color: #ffaa44;
-            text-shadow: 0 0 10px orange;
             background: rgba(0,0,0,0.6);
             border-color: #ffaa44;
             white-space: nowrap;
         }
 
-        /* 按鈕 */
+        /* 搖桿 */
+        .joystick-container {
+            position: fixed;
+            bottom: 30px;
+            left: 30px;
+            width: 140px;
+            height: 140px;
+            z-index: 20;
+        }
+
+        .joystick-base {
+            width: 100%;
+            height: 100%;
+            background: rgba(30,30,50,0.7);
+            backdrop-filter: blur(8px);
+            border-radius: 50%;
+            border: 2px solid rgba(255,255,255,0.3);
+        }
+
+        .joystick-thumb {
+            position: absolute;
+            width: 55px;
+            height: 55px;
+            background: rgba(255,215,0,0.9);
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 15px rgba(255,215,0,0.5);
+            pointer-events: none;
+        }
+
+        /* 攻擊防禦按鈕 */
         .action-buttons {
             position: fixed;
             bottom: 30px;
             right: 20px;
-            z-index: 10;
+            z-index: 20;
             display: flex;
             flex-direction: column;
             gap: 15px;
@@ -155,41 +182,36 @@
         .defend-btn {
             border-color: #44aaff;
             background: rgba(0,80,120,0.8);
-            box-shadow: 0 0 15px rgba(68,170,255,0.3);
         }
 
         .action-btn:active {
             transform: scale(0.92);
         }
 
-        /* 警告 */
         .warning {
             position: fixed;
             top: 40%;
             left: 50%;
             transform: translate(-50%, -50%);
-            z-index: 20;
-            font-size: 34px;
+            z-index: 25;
+            font-size: 30px;
             font-weight: bold;
             color: #ff0000;
             background: rgba(0,0,0,0.95);
             padding: 18px 36px;
             border-radius: 60px;
-            border: 4px solid red;
+            border: 3px solid red;
             animation: pulseWarning 0.3s infinite;
             display: none;
             white-space: nowrap;
             font-family: monospace;
-            text-align: center;
-            letter-spacing: 4px;
         }
 
         @keyframes pulseWarning {
-            0% { opacity: 1; transform: translate(-50%, -50%) scale(1); text-shadow: 0 0 0 red; }
-            100% { opacity: 0.7; transform: translate(-50%, -50%) scale(1.05); text-shadow: 0 0 20px red; }
+            0% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+            100% { opacity: 0.6; transform: translate(-50%, -50%) scale(1.05); }
         }
 
-        /* 攻擊特效文字 */
         .damage-pop {
             position: fixed;
             font-size: 36px;
@@ -198,7 +220,7 @@
             text-shadow: 0 0 10px red;
             z-index: 15;
             pointer-events: none;
-            animation: floatUp 0.6s ease-out forwards;
+            animation: floatUp 0.5s ease-out forwards;
             font-family: monospace;
         }
 
@@ -207,7 +229,6 @@
             100% { opacity: 0; transform: translateY(-80px) scale(1.5); }
         }
 
-        /* 開始畫面 */
         .start-overlay {
             position: fixed;
             top: 0;
@@ -226,11 +247,11 @@
         }
 
         .start-title {
-            font-size: 58px;
+            font-size: 56px;
             color: #ffd966;
             text-shadow: 0 0 25px rgba(255,217,102,0.6);
             font-family: monospace;
-            letter-spacing: 8px;
+            letter-spacing: 4px;
         }
 
         .start-sub {
@@ -242,13 +263,6 @@
             border: 2px solid #ffd966;
         }
 
-        .start-hint {
-            font-size: 14px;
-            color: #aaa;
-            margin-top: 20px;
-        }
-
-        /* 遊戲結束 */
         .game-over {
             position: fixed;
             top: 0;
@@ -276,11 +290,6 @@
             border-radius: 60px;
             cursor: pointer;
             font-weight: bold;
-            transition: 0.2s;
-        }
-
-        .game-over button:active {
-            transform: scale(0.95);
         }
 
         .instruction {
@@ -288,10 +297,10 @@
             bottom: 15px;
             left: 15px;
             z-index: 10;
-            background: rgba(0,0,0,0.5);
-            padding: 5px 12px;
+            background: rgba(0,0,0,0.55);
+            padding: 6px 14px;
             border-radius: 20px;
-            font-size: 10px;
+            font-size: 11px;
             color: #ccc;
             pointer-events: none;
         }
@@ -302,12 +311,12 @@
     <canvas id="gameCanvas"></canvas>
 
     <div class="ui-panel health-bar-container">
-        <div class="health-label">❤️ 你的生命</div>
+        <div class="health-label">❤️ 你的血量</div>
         <div class="health-bg"><div class="health-fill" id="playerHealthFill" style="width: 100%"></div></div>
     </div>
 
     <div class="ui-panel enemy-health">
-        <div class="health-label">👹 敵人生命 (真人)</div>
+        <div class="health-label">👹 真人敵人血量</div>
         <div class="health-bg"><div class="health-fill" id="enemyHealthFill" style="width: 100%"></div></div>
     </div>
 
@@ -316,7 +325,12 @@
     </div>
 
     <div class="status-panel ui-panel" id="statusText">
-        🎮 點擊攻擊按鈕砍殺真人
+        🎮 左下搖桿移動戰士 | 靠近真人再攻擊
+    </div>
+
+    <div class="joystick-container">
+        <div class="joystick-base" id="joystickBase"></div>
+        <div class="joystick-thumb" id="joystickThumb"></div>
     </div>
 
     <div class="action-buttons">
@@ -327,13 +341,13 @@
     <div id="warning" class="warning">⚠️ 轉頭防禦！ ⚠️</div>
 
     <div class="instruction">
-        📷 真人站在鏡頭前 | 按⚔️攻擊 | 轉頭時按🛡️防禦
+        📍 左下搖桿移動刀盾戰士 | 走到真人旁邊按攻擊 | 轉頭按防禦
     </div>
 
     <div class="start-overlay" id="startOverlay">
         <div class="start-title">🗡️ 我的刀盾 🛡️</div>
-        <div class="start-sub">⚔️ 點擊開啟鏡頭，砍真人！ ⚔️</div>
-        <div class="start-hint">📷 需要允許相機權限</div>
+        <div class="start-sub">⚔️ 點擊開啟鏡頭，控制戰士砍真人 ⚔️</div>
+        <div style="color:#aaa; margin-top:20px; font-size:14px;">📷 需要允許相機權限</div>
     </div>
 
     <script>
@@ -349,6 +363,19 @@
         const attackBtn = document.getElementById('attackBtn');
         const defendBtn = document.getElementById('defendBtn');
         const startOverlay = document.getElementById('startOverlay');
+        const joystickBase = document.getElementById('joystickBase');
+        const joystickThumb = document.getElementById('joystickThumb');
+
+        // ========== 搖桿變數 ==========
+        let joystickActive = false;
+        let joystickVector = { x: 0, y: 0 };
+        let joystickCenter = { x: 0, y: 0 };
+        let joystickRadius = 55;
+
+        // ========== 刀盾戰士位置 (螢幕座標百分比) ==========
+        let warriorX = 0.5;
+        let warriorY = 0.6;
+        const MOVE_SPEED = 0.009;
 
         // ========== 遊戲狀態 ==========
         let playerHealth = 100;
@@ -356,7 +383,7 @@
         let gameRunning = true;
         let cameraReady = false;
         
-        // 人臉/人體偵測
+        // 人臉/身體偵測
         let faceDetected = false;
         let isLookingAway = false;
         
@@ -374,39 +401,91 @@
         // 敵人反擊
         let enemyAttackTimer = 0;
         
-        // 特效
-        let damagePopups = [];
+        // 真人位置 (鏡頭偵測到的人)
+        let enemyScreenX = 0.5;
+        let enemyScreenY = 0.5;
         
-        let stream = null;
         let animationId = null;
 
-        // ========== 更新血條 ==========
+        // ========== 搖桿初始化 ==========
+        function initJoystick() {
+            const rect = joystickBase.getBoundingClientRect();
+            joystickCenter.x = rect.left + rect.width / 2;
+            joystickCenter.y = rect.top + rect.height / 2;
+            joystickRadius = rect.width / 2 - 10;
+        }
+
+        function updateJoystickPosition(e) {
+            if (!joystickActive) return;
+            let clientX, clientY;
+            if (e.touches) {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            } else {
+                clientX = e.clientX;
+                clientY = e.clientY;
+            }
+            let dx = clientX - joystickCenter.x;
+            let dy = clientY - joystickCenter.y;
+            let dist = Math.hypot(dx, dy);
+            if (dist > joystickRadius) {
+                dx = dx / dist * joystickRadius;
+                dy = dy / dist * joystickRadius;
+            }
+            joystickVector.x = dx / joystickRadius;
+            joystickVector.y = dy / joystickRadius;
+            joystickThumb.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+        }
+
+        function onJoystickStart(e) {
+            e.preventDefault();
+            joystickActive = true;
+            updateJoystickPosition(e);
+        }
+
+        function onJoystickEnd() {
+            joystickActive = false;
+            joystickVector = { x: 0, y: 0 };
+            joystickThumb.style.transform = 'translate(-50%, -50%)';
+        }
+
+        joystickBase.addEventListener('touchstart', onJoystickStart);
+        joystickBase.addEventListener('touchmove', updateJoystickPosition);
+        joystickBase.addEventListener('touchend', onJoystickEnd);
+        window.addEventListener('resize', initJoystick);
+
+        // ========== 移動刀盾戰士 ==========
+        function updateWarriorPosition() {
+            if (!gameRunning) return;
+            warriorX += joystickVector.x * MOVE_SPEED;
+            warriorY += joystickVector.y * MOVE_SPEED;
+            warriorX = Math.min(0.88, Math.max(0.12, warriorX));
+            warriorY = Math.min(0.85, Math.max(0.15, warriorY));
+        }
+
+        // ========== 血條更新 ==========
         function updateHealthBars() {
             playerHealthFill.style.width = `${Math.max(0, playerHealth)}%`;
             enemyHealthFill.style.width = `${Math.max(0, enemyHealth)}%`;
         }
 
-        // ========== 顯示傷害數字 ==========
-        function showDamagePopup(damage, isEnemy) {
+        // ========== 特效 ==========
+        function showDamagePopup(damage, isEnemy, x, y) {
             const pop = document.createElement('div');
             pop.className = 'damage-pop';
             pop.textContent = `-${damage}!`;
-            pop.style.left = isEnemy ? '70%' : '30%';
-            pop.style.top = '40%';
-            pop.style.color = isEnemy ? '#ff8844' : '#ff4444';
+            pop.style.left = x || (isEnemy ? '70%' : '25%');
+            pop.style.top = y || '35%';
             document.body.appendChild(pop);
-            setTimeout(() => pop.remove(), 600);
+            setTimeout(() => pop.remove(), 500);
         }
 
-        // ========== 攻擊特效 (畫面閃紅) ==========
-        function flashScreen(color, alpha = 0.3) {
+        function flashScreen(color, alpha = 0.35) {
             ctx.fillStyle = color;
             ctx.globalAlpha = alpha;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.globalAlpha = 1;
-            setTimeout(() => {
-                if (gameRunning) ctx.clearRect(0, 0, canvas.width, canvas.height);
-            }, 100);
+            setTimeout(() => { if (gameRunning) ctx.clearRect(0, 0, canvas.width, canvas.height); }, 100);
         }
 
         // ========== 連擊系統 ==========
@@ -415,7 +494,6 @@
             comboDisplay.innerHTML = `⚔️ 連擊 ${combo} ⚔️`;
             comboDisplay.style.transform = 'scale(1.2)';
             setTimeout(() => { if(comboDisplay) comboDisplay.style.transform = 'scale(1)'; }, 150);
-            
             if (comboTimeout) clearTimeout(comboTimeout);
             comboTimeout = setTimeout(() => {
                 combo = 0;
@@ -431,11 +509,7 @@
 
         // ========== 攻擊！砍真人 ==========
         function tryAttack() {
-            if (!gameRunning) return false;
-            if (!cameraReady) {
-                statusDiv.innerText = "❌ 鏡頭未開啟";
-                return false;
-            }
+            if (!gameRunning || !cameraReady) return false;
             if (!canAttack) {
                 statusDiv.innerText = "⏳ 冷卻中...";
                 return false;
@@ -449,23 +523,32 @@
                 return false;
             }
             
+            // 計算刀盾戰士和真人的距離
+            const warriorScreenX = warriorX * canvas.width;
+            const warriorScreenY = warriorY * canvas.height;
+            const enemyScreenPosX = enemyScreenX * canvas.width;
+            const enemyScreenPosY = enemyScreenY * canvas.height;
+            const distance = Math.hypot(warriorScreenX - enemyScreenPosX, warriorScreenY - enemyScreenPosY);
+            
+            if (distance > 130) {
+                statusDiv.innerText = "❌ 太遠了！用搖桿靠近真人再砍！";
+                return false;
+            }
+            
             // 攻擊成功
             canAttack = false;
-            attackCooldown = 18;  // 冷卻幀數
+            attackCooldown = 18;
             
-            const damage = 12 + Math.floor(combo / 5); // 連擊加成
+            const damage = 12 + Math.floor(combo / 5);
             enemyHealth = Math.max(0, enemyHealth - damage);
             updateHealthBars();
-            showDamagePopup(damage, true);
+            showDamagePopup(damage, true, enemyScreenPosX, enemyScreenPosY - 50);
             flashScreen('#ff3300', 0.4);
             addCombo();
             
             statusDiv.innerText = `⚔️ 砍中真人！ -${damage} ⚔️`;
-            
-            // 震動
             if (navigator.vibrate) navigator.vibrate(50);
             
-            // 勝利判定
             if (enemyHealth <= 0) {
                 gameRunning = false;
                 const div = document.createElement('div');
@@ -477,7 +560,6 @@
                 `;
                 document.body.appendChild(div);
             }
-            
             return true;
         }
 
@@ -493,7 +575,7 @@
             defendTimer = setTimeout(() => {
                 isDefending = false;
                 if (gameRunning && !forcedDefense) {
-                    statusDiv.innerText = "🗡️ 點攻擊砍真人 🛡️";
+                    statusDiv.innerText = "🎮 搖桿移動戰士 | 靠近真人攻擊";
                 }
             }, 700);
         }
@@ -503,14 +585,14 @@
             if (!gameRunning) return;
             
             if (isDefending) {
-                statusDiv.innerText = "🛡️ 防禦成功！格擋！";
+                statusDiv.innerText = "🛡️ 防禦成功！";
                 flashScreen('#4488ff', 0.2);
                 return;
             }
             
             playerHealth = Math.max(0, playerHealth - amount);
             updateHealthBars();
-            showDamagePopup(amount, false);
+            showDamagePopup(amount, false, '30%', '35%');
             flashScreen('#ffffff', 0.5);
             statusDiv.innerText = `💔 受傷 -${amount} 💔`;
             resetCombo();
@@ -530,50 +612,51 @@
             }
         }
 
-        // ========== 敵人反擊 AI ==========
+        // ========== 敵人反擊 ==========
         function updateEnemyCounter() {
             if (!gameRunning) return;
             if (enemyHealth <= 0) return;
             
             if (enemyAttackTimer <= 0) {
-                // 只有鏡頭前有真人才會反擊
                 if (faceDetected && !isLookingAway) {
-                    damagePlayer(10);
-                    enemyAttackTimer = 45;  // 約0.7秒反擊一次
+                    // 計算距離，太遠不會反擊
+                    const warriorXpx = warriorX * canvas.width;
+                    const warriorYpx = warriorY * canvas.height;
+                    const enemyXpx = enemyScreenX * canvas.width;
+                    const enemyYpx = enemyScreenY * canvas.height;
+                    const dist = Math.hypot(warriorXpx - enemyXpx, warriorYpx - enemyYpx);
+                    if (dist < 160) {
+                        damagePlayer(9);
+                    }
+                    enemyAttackTimer = 45;
                 }
             } else {
                 enemyAttackTimer--;
             }
         }
 
-        // ========== 膚色/人臉偵測 ==========
+        // ========== 人體/膚色偵測 (抓真人位置) ==========
         function isSkinColor(r, g, b) {
-            // 膚色範圍（適合各種膚色）
-            return (r > 65 && g > 35 && b > 20 && 
-                    Math.abs(r - g) > 8 && 
-                    r > g && r > b);
+            return (r > 65 && g > 35 && b > 20 && Math.abs(r - g) > 8 && r > g && r > b);
         }
 
-        function detectHumanAndDirection(imageData) {
+        function detectHumanCenter(imageData) {
             const data = imageData.data;
-            const width = imageData.width;
-            const height = imageData.height;
-            let totalSkin = 0;
+            const w = imageData.width;
+            const h = imageData.height;
+            let skinPixels = 0;
+            let sumX = 0, sumY = 0;
             let centerSkin = 0;
+            const centerStartX = w * 0.25;
+            const centerEndX = w * 0.75;
             
-            const centerStartX = width * 0.25;
-            const centerEndX = width * 0.75;
-            
-            // 降取樣加速
-            for (let y = 0; y < height; y += 6) {
-                for (let x = 0; x < width; x += 6) {
-                    const idx = (y * width + x) * 4;
-                    const r = data[idx];
-                    const g = data[idx+1];
-                    const b = data[idx+2];
-                    
-                    if (isSkinColor(r, g, b)) {
-                        totalSkin++;
+            for (let y = 0; y < h; y += 5) {
+                for (let x = 0; x < w; x += 5) {
+                    const idx = (y * w + x) * 4;
+                    if (isSkinColor(data[idx], data[idx+1], data[idx+2])) {
+                        skinPixels++;
+                        sumX += x;
+                        sumY += y;
                         if (x >= centerStartX && x <= centerEndX) {
                             centerSkin++;
                         }
@@ -581,153 +664,166 @@
                 }
             }
             
-            const totalSampled = (width * height) / 36;
-            const skinRatio = totalSkin / totalSampled;
-            const centerRatio = centerSkin / totalSampled;
-            
+            const totalSampled = (w * h) / 25;
+            const skinRatio = skinPixels / totalSampled;
             const humanDetected = skinRatio > 0.012;
-            let lookingAway = false;
             
-            if (humanDetected) {
-                // 如果中央膚色少於總膚色的一半 => 轉頭
+            let lookingAway = false;
+            let centerX = 0.5, centerY = 0.5;
+            
+            if (humanDetected && skinPixels > 0) {
+                centerX = sumX / skinPixels / w;
+                centerY = sumY / skinPixels / h;
+                const centerRatio = centerSkin / totalSampled;
                 if (centerRatio < skinRatio * 0.45) {
                     lookingAway = true;
                 }
             } else {
-                lookingAway = true;  // 沒人 = 轉頭
+                lookingAway = true;
             }
             
-            return { humanDetected, lookingAway };
+            return { humanDetected, lookingAway, centerX, centerY };
         }
 
-        // ========== 繪製 AR 刀盾戰士 ==========
-        function drawARWarrior() {
+        // ========== 繪製刀盾戰士 (可移動) ==========
+        function drawWarrior() {
             if (!canvas.width || !canvas.height) return;
             
             const w = canvas.width;
             const h = canvas.height;
-            const centerX = w / 2;
-            const centerY = h / 2;
+            const x = warriorX * w;
+            const y = warriorY * h;
             
-            // 繪製半透明圓形光環（代表玩家位置）
+            // 底盤光環
             ctx.beginPath();
-            ctx.arc(centerX, centerY, 80, 0, Math.PI * 2);
-            ctx.fillStyle = faceDetected ? 'rgba(0,200,100,0.15)' : 'rgba(200,0,0,0.15)';
+            ctx.arc(x, y, 55, 0, Math.PI * 2);
+            ctx.fillStyle = faceDetected ? 'rgba(0,200,100,0.2)' : 'rgba(200,0,0,0.2)';
             ctx.fill();
             ctx.strokeStyle = faceDetected ? '#00ff88' : '#ff4444';
             ctx.lineWidth = 3;
             ctx.stroke();
             
-            // 繪製刀盾戰士（簡單但酷炫）
             // 頭盔
             ctx.beginPath();
-            ctx.arc(centerX, centerY - 30, 35, 0, Math.PI * 2);
+            ctx.arc(x, y - 30, 32, 0, Math.PI * 2);
             ctx.fillStyle = '#3a6ea5';
             ctx.fill();
             ctx.strokeStyle = '#ffcc88';
             ctx.lineWidth = 2;
             ctx.stroke();
             
-            // 臉部（表情根據狀態）
+            // 眼睛
             ctx.fillStyle = '#ffccaa';
             ctx.beginPath();
-            ctx.arc(centerX - 12, centerY - 38, 6, 0, Math.PI * 2);
-            ctx.arc(centerX + 12, centerY - 38, 6, 0, Math.PI * 2);
+            ctx.arc(x - 12, y - 38, 6, 0, Math.PI * 2);
+            ctx.arc(x + 12, y - 38, 6, 0, Math.PI * 2);
             ctx.fill();
             
-            // 生氣/正常表情
+            // 表情（生氣/正常）
+            ctx.beginPath();
             if (faceDetected && !isLookingAway) {
-                ctx.beginPath();
-                ctx.arc(centerX, centerY - 22, 10, 0.1, Math.PI - 0.1);
-                ctx.stroke();
+                ctx.arc(x, y - 22, 10, 0.1, Math.PI - 0.1);
             } else {
-                ctx.beginPath();
-                ctx.arc(centerX, centerY - 22, 8, 0, Math.PI);
-                ctx.stroke();
+                ctx.arc(x, y - 22, 8, 0, Math.PI);
             }
+            ctx.stroke();
             
-            // 身體
+            // 身體鎧甲
             ctx.fillStyle = '#2a5f8f';
-            ctx.fillRect(centerX - 30, centerY - 5, 60, 55);
+            ctx.fillRect(x - 30, y - 5, 60, 55);
             
-            // 盾牌（左手）
+            // 鎧甲細節
+            ctx.fillStyle = '#ffaa66';
+            ctx.fillRect(x - 20, y + 10, 40, 10);
+            
+            // 盾牌 (左手)
             ctx.fillStyle = '#cc8844';
             ctx.beginPath();
-            ctx.ellipse(centerX - 40, centerY + 10, 20, 30, 0, 0, Math.PI * 2);
+            ctx.ellipse(x - 42, y + 8, 20, 30, 0, 0, Math.PI * 2);
             ctx.fill();
             ctx.fillStyle = '#ffaa66';
-            ctx.font = "28px monospace";
-            ctx.fillText("🛡️", centerX - 52, centerY + 18);
+            ctx.font = "32px monospace";
+            ctx.fillText("🛡️", x - 55, y + 15);
             
-            // 劍（右手）
+            // 劍 (右手)
             ctx.beginPath();
-            ctx.moveTo(centerX + 35, centerY + 5);
-            ctx.lineTo(centerX + 70, centerY - 15);
-            ctx.lineTo(centerX + 65, centerY - 20);
+            ctx.moveTo(x + 35, y + 2);
+            ctx.lineTo(x + 75, y - 20);
+            ctx.lineTo(x + 68, y - 26);
             ctx.fillStyle = '#ddddff';
             ctx.fill();
-            ctx.fillStyle = '#ffffff';
-            ctx.font = "32px monospace";
-            ctx.fillText("⚔️", centerX + 45, centerY - 10);
+            ctx.fillStyle = 'white';
+            ctx.font = "34px monospace";
+            ctx.fillText("⚔️", x + 45, y - 12);
             
-            // 狀態文字
-            ctx.font = "bold 18px monospace";
-            ctx.fillStyle = faceDetected ? '#88ff88' : '#ff8888';
+            // 名稱標籤
+            ctx.font = "bold 16px monospace";
+            ctx.fillStyle = '#ffdd99';
             ctx.shadowBlur = 0;
-            ctx.fillText(faceDetected ? "✓ 鎖定目標" : "✗ 無人可砍", centerX - 60, centerY - 70);
+            ctx.fillText("🗡️ 刀盾勇士 🛡️", x - 55, y - 55);
             
+            // 防禦狀態文字
             if (isDefending) {
                 ctx.fillStyle = '#44aaff';
-                ctx.font = "bold 28px monospace";
-                ctx.fillText("🛡️ 防禦狀態 🛡️", centerX - 70, centerY + 60);
+                ctx.font = "bold 24px monospace";
+                ctx.fillText("🛡️ 防禦中", x - 45, y + 55);
+            }
+            
+            // 畫線連接到真人
+            if (faceDetected && !isLookingAway) {
+                const ex = enemyScreenX * w;
+                const ey = enemyScreenY * h;
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                ctx.lineTo(ex, ey);
+                ctx.strokeStyle = '#ffaa44';
+                ctx.setLineDash([8, 10]);
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                ctx.setLineDash([]);
             }
         }
 
         // ========== 主遊戲循環 ==========
         function gameLoop() {
-            if (!gameRunning) {
-                if (animationId) cancelAnimationFrame(animationId);
-                return;
-            }
+            if (!gameRunning) return;
             
-            // 更新冷卻
+            updateWarriorPosition();
+            updateEnemyCounter();
+            
             if (!canAttack) {
                 attackCooldown--;
                 if (attackCooldown <= 0) canAttack = true;
             }
             
-            // 敵人反擊
-            updateEnemyCounter();
-            
-            // 處理鏡頭和AR繪圖
             if (cameraReady && video.readyState >= 2 && video.videoWidth > 0) {
-                // 設定畫布尺寸
                 if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
                     canvas.width = video.videoWidth;
                     canvas.height = video.videoHeight;
+                    initJoystick();
                 }
                 
-                // 繪製鏡頭畫面
+                // 畫相機畫面
                 ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
                 
-                // 分析畫面（偵測人臉和轉頭）
+                // 偵測人體
                 try {
                     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                    const { humanDetected, lookingAway } = detectHumanAndDirection(imageData);
+                    const { humanDetected, lookingAway, centerX, centerY } = detectHumanCenter(imageData);
                     faceDetected = humanDetected;
                     isLookingAway = lookingAway;
-                } catch(e) {
-                    console.warn("分析失敗", e);
-                }
+                    if (faceDetected) {
+                        enemyScreenX = centerX;
+                        enemyScreenY = centerY;
+                    }
+                } catch(e) {}
                 
                 // 轉頭防禦機制
                 if (isLookingAway) {
                     if (!forcedDefense) {
                         forcedDefense = true;
                         warningDiv.style.display = 'block';
-                        statusDiv.innerText = "⚠️ 轉頭警報！快按防禦！ ⚠️";
-                        
-                        // 0.8秒內沒防禦就輸
+                        statusDiv.innerText = "⚠️ 轉頭了！快按防禦！ ⚠️";
                         setTimeout(() => {
                             if (forcedDefense && !isDefending && gameRunning) {
                                 gameRunning = false;
@@ -746,16 +842,11 @@
                     warningDiv.style.display = 'none';
                 }
                 
-                // 畫 AR 刀盾戰士
-                drawARWarrior();
+                drawWarrior();
                 
             } else if (cameraReady) {
-                // 鏡頭準備中
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
-                drawARWarrior();
-                ctx.fillStyle = 'white';
-                ctx.font = '20px monospace';
-                ctx.fillText('等待鏡頭畫面...', canvas.width/2-100, canvas.height/2);
+                drawWarrior();
             }
             
             animationId = requestAnimationFrame(gameLoop);
@@ -765,20 +856,14 @@
         async function startCamera() {
             try {
                 statusDiv.innerText = "📷 請求鏡頭權限...";
-                const constraints = {
-                    video: {
-                        facingMode: "user",
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 }
-                    }
-                };
-                stream = await navigator.mediaDevices.getUserMedia(constraints);
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: "user" } 
+                });
                 video.srcObject = stream;
                 await video.play();
                 cameraReady = true;
-                statusDiv.innerText = "✅ 鏡頭已開啟！把真人放進畫面中央！";
+                statusDiv.innerText = "✅ 鏡頭開啟！用搖桿移動戰士靠近真人！";
                 
-                // 等待取得畫面尺寸
                 await new Promise(resolve => {
                     const check = setInterval(() => {
                         if (video.videoWidth > 0) {
@@ -790,6 +875,7 @@
                 
                 canvas.width = video.videoWidth;
                 canvas.height = video.videoHeight;
+                initJoystick();
                 
             } catch (err) {
                 console.error(err);
@@ -799,30 +885,14 @@
         }
 
         // ========== 事件綁定 ==========
-        attackBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            tryAttack();
-        });
+        attackBtn.addEventListener('click', (e) => { e.preventDefault(); tryAttack(); });
+        attackBtn.addEventListener('touchstart', (e) => { e.preventDefault(); tryAttack(); });
+        defendBtn.addEventListener('click', (e) => { e.preventDefault(); startDefense(); });
+        defendBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startDefense(); });
         
-        attackBtn.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            tryAttack();
-        });
-        
-        defendBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            startDefense();
-        });
-        
-        defendBtn.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            startDefense();
-        });
-        
-        // 開始遊戲
         startOverlay.addEventListener('click', async () => {
             startOverlay.style.opacity = '0';
-            setTimeout(() => startOverlay.style.display = 'none', 500);
+            setTimeout(() => startOverlay.remove(), 500);
             await startCamera();
             gameLoop();
         });
@@ -831,6 +901,7 @@
         updateHealthBars();
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
+        initJoystick();
     </script>
 </body>
 </html>
